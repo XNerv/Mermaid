@@ -32,6 +32,7 @@ from waflib.TaskGen import feature, before_method, after_method, extension
 
 
 
+
 class TextUtils:
   @staticmethod
   def filter_text(text, valid_chars, replacements):
@@ -46,10 +47,12 @@ class TextUtils:
 
 
 
+
 class EntityType:
   UNKNOWN   = 'unknown'
   DIRECTORY = 'directory'
   FILE      = 'file'
+
 
 
 
@@ -61,6 +64,10 @@ class Entity:
     self.EntityPath = entity_path
     self.Entities   = []
 
+  def __str__(self):
+    return os.path.join(self.EntityPath, self.EntityName)
+
+
 
           
 class EntityTree:
@@ -70,43 +77,38 @@ class EntityTree:
     self.Root = []
     for root_node in root_nodes:
       self.Root.append(self.__build_the_tree(root_node))
-    self.__file_count = 0
 
   def __build_the_tree(self, node):
     entity = Entity(entity_type=EntityType.UNKNOWN, entity_name=os.path.basename(node.abspath()), entity_path=node.abspath())    
-    entity.is_hidden = self.__is_hidden_entity(entity) 
-    if os.path.isdir(node.abspath()):
+    entity.is_hidden = self.__is_hidden_entity(entity)
+    if os.path.isdir(entity.EntityPath):
       entity.EntityType = EntityType.DIRECTORY
       for item_node in sorted(node.ant_glob(incl=self.include_patterns, excl=self.exclude_patterns)):
         entity.Entities.append(self.__build_the_tree(item_node))
       return entity
-    elif os.path.isfile(node.abspath()):
+    elif os.path.isfile(entity.EntityPath):
       entity.EntityType = EntityType.FILE
       return entity
     else:
       entity.EntityType = EntityType.UNKNOWN
+      Logs.warn('binarybuilder: unknown entity type for the file %s' % str(entity))
       return entity
 
   def __is_hidden_entity (self, entity):
-    return (entity.EntityName == ".git" or 
-            entity.EntityName == ".svn" or 
-            entity.EntityName.endswith(".scc") or 
-            entity.EntityName.startswith("."))
+    return (entity.EntityName.startswith("."))
 
   def get_file_count(self):
     return self.__get_file_count(self.Root)
 
   def __get_file_count(self, entities):
-    count = 0 
+    file_count = 0 
     for entity in entities:
       if entity.EntityType == EntityType.DIRECTORY:
-        count = count + self.__get_file_count(entity.Entities)
+        file_count = file_count + self.__get_file_count(entity.Entities)
       elif entity.EntityType == EntityType.FILE and not entity.is_hidden:
-        count = count + 1
-    return count
+        file_count = file_count + 1
+    return file_count
 
-
-  
 
 
 
@@ -119,32 +121,32 @@ class ResourceGenerator:
     self.generation_date  = datetime.datetime.now()
     
   def generate_resource(self, entity, namespace):
-    base_path = os.path.abspath(os.path.join(self.output_directory, "source", os.path.relpath(os.path.dirname(entity.EntityPath), self.source_directory))) 
-
+    base_path = os.path.abspath(os.path.join(self.output_directory, "source", os.path.relpath(os.path.dirname(entity.EntityPath), self.source_directory)))
     if not os.path.exists(base_path):
       os.makedirs(base_path)
 
-    header_file = os.path.join(base_path, TextUtils.normalise_filename(entity.EntityName) + ".h")
-    cpp_file    = os.path.join(base_path, TextUtils.normalise_filename(entity.EntityName) + ".cpp")
+    entity_file = os.path.join(base_path, TextUtils.normalise_filename(entity.EntityName))
+    header_file = entity_file + ".h"
+    cpp_file    = entity_file + ".cpp"
     
     try:
       header = open(header_file, 'wb')
     except IOError:     
-      print "Failed to open the header file " + header_file
+      Logs.error('binarybuilder: failed to open the header file %s' % header_file)
       sys.exit(1)     
   
     try:
       cpp = open(cpp_file, 'wb')
-    except IOError:     
-      print "Failed to open the cpp file " + cpp_file
+    except IOError:   
+      Logs.error('binarybuilder: failed to open the cpp file %s' % cpp_file)
       sys.exit(1)
 
     try:
       resource           = open(entity.EntityPath, 'rb')
       resource_data_size = os.path.getsize(entity.EntityPath)
-      print "Size: " + str(resource_data_size)
+      Logs.info('binarybuilder: resource that will be processed has ' + str(resource_data_size) + ' bytes in size. %s' % os.path.relpath(cpp_file, self.output_directory))
     except IOError:     
-      print "Failed to open the resource file " + entity.EntityPath
+      Logs.error('binarybuilder: failed to open the resource file %s' % entity.EntityPath)
       sys.exit(1)
 
     header.write ("/****************************************************  \n")
@@ -186,6 +188,7 @@ class ResourceGenerator:
 
     if not os.path.exists(base_path):
       os.makedirs(base_path)
+    Logs.info('binarybuilder: the generated files will be placed in the following path %s' % base_path)
 
     main_header_file = os.path.join(base_path, "resources.h")
     
@@ -226,6 +229,19 @@ class embedres(Task.Task):
     self.color  = 'PINK'
     self.hasrun = Task.NOT_RUN
 
+  def uid(self):
+    try:
+      return self.uid_
+    except AttributeError:
+      m = Utils.md5()
+      up = m.update
+      up(self.__class__.__name__.encode())
+      up(str(self.entity_tree.get_file_count()))
+      for x in self.inputs + self.outputs:
+        up(x.path_from(x.ctx.srcnode).encode())
+      self.uid_ = m.digest()
+      return self.uid_
+
   def runnable_status(self):  
     for task in self.run_after:
       if not task.hasrun:
@@ -234,6 +250,16 @@ class embedres(Task.Task):
     self.entity_tree = EntityTree(root_nodes=self.resource_dir_nodes, include_patterns=self.include_patterns, exclude_patterns=self.exclude_patterns)
 
     self.output_dir = self.generator.path.get_bld().make_node(TextUtils.normalise_filename(self.generator.name))
+
+    try:
+      # compute the signature once to know if there is a moc file to create
+      self.signature()
+    except KeyError:
+      # the moc file may be referenced somewhere else
+      pass
+    else:
+      # remove the signature, it must be recomputed with the moc task
+      delattr(self, 'cache_sig')
 
     ret = super(embedres, self).runnable_status()
     #if ret == Task.SKIP_ME:
