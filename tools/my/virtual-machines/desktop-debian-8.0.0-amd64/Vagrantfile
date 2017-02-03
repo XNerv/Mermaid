@@ -1,0 +1,27 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  # Base box
+  config.vm.box = "xnerv/desktop-debian-8.0.0-amd64.box"
+  
+  # Shared folders
+  config.vm.synced_folder "../../../../", "/vagrant"
+  
+  # Virtualization provider
+  config.vm.provider :virtualbox do |vb|
+    # Don't boot with headless mode
+    vb.gui = true
+ 
+    # Use VBoxManage to customize the VM.
+    vb.customize ["modifyvm", :id, "--memory", "2048"]
+
+    vb.customize ["modifyvm", :id, "--accelerate3d", "on"]
+    vb.customize ["modifyvm", :id, "--vram", "128"]
+  end
+
+  # Shell provision
+  config.vm.provision :shell do |shell|
+    shell.path = "scripts/bootstrap.sh"
+  end
+end

@@ -1,0 +1,10 @@
+
+./my         - Here we put all nice tools that we wrote to simplify our 
+               lives =^.~=
+
+./thirdparty - All third party tools goes here.
+
+
+REMARKE:
+	Don't put anything inside the root of this directory, put inside the
+	'thirdparty' directory or inside the 'my' directory.

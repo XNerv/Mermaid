@@ -1,0 +1,74 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+#// +--------------------------------------------------------------------------
+#// |
+#// |   Mermaid GPL Source Code
+#// |   Copyright (c) 2013-2016 XNerv Ltda (http://xnerv.com). All rights reserved.
+#// |
+#// |   This file is part of the Mermaid GPL Source Code.
+#// |
+#// |   Mermaid Source Code is free software: you can redistribute it and/or
+#// |   modify it under the terms of the GNU General Public License
+#// |   as published by the Free Software Foundation, either version 3
+#// |   of the License, or (at your option) any later version.
+#// |
+#// |   Mermaid Source Code is distributed in the hope that it will be useful,
+#// |   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#// |   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#// |   GNU General Public License for more details.
+#// |
+#// |   You should have received a copy of the GNU General Public License
+#// |   along with Mermaid Source Code. If not, see <http://www.gnu.org/licenses/>.
+#// |
+#// +--------------------------------------------------------------------------
+
+from common.enums import OSName
+
+#
+# mermaid application
+#
+bld.RECURSE('app/resources')
+
+if bld.env.PROJECT_OS_NAME == OSName.LINUX:
+    libs = ['dl', 'X11', 'Xext', 'Xinerama', 'freetype', 'pthread', 'rt', 'GL']
+else: 
+    libs = []
+
+src  = bld.path.ant_glob('app/src/**/*.cpp')
+
+bld.BUILD_PROGRAM(
+    target    = 'mermaid',
+    source    = src,
+    subsystem = 'windows',
+	includes = ['app/include', 'app/src'],
+    libpath   = ['/usr/X11R6/lib/'],
+	lib       = libs,
+	use       = ['mermaid_base', 'mermaid_engine', 'mermaid_gui', 'juce', "app_res"],
+	rpath     = '$ORIGIN/../lib')
+#--------------------------------------------------------------------------
+
+#
+# mermaid engine
+#
+if bld.env.PROJECT_OS_NAME == OSName.LINUX:
+    cflags = cxxflags = ['-fPIC']
+else:
+    cflags = cxxflags = []
+
+src        = bld.path.ant_glob(['engine/src/**/*.cpp']) 
+
+def sdk_install_callback(bld):
+	start_dir = bld.path.find_dir('engine/include')
+	bld.install_files('${INCLUDEDIR}', start_dir.ant_glob('**/*'), cwd=start_dir, relative_trick=True)
+
+bld.BUILD_SHARED_LIBRARY(
+    target = 'mermaid_engine',
+    source = src,
+	includes = 'engine/include',
+	export_includes = 'engine/include',
+	msvs_includes = 'engine/include',
+	cflags = cflags,
+	cxxflags = cxxflags,
+	use = ['mermaid_base', 'mermaid_gui'],
+	sdk_install_callback = sdk_install_callback)

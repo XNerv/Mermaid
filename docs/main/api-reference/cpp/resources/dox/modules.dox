@@ -1,0 +1,11 @@
+/**  
+ * @defgroup mermaid_base Mermaid::Base
+ * 
+ * @brief Basic functionality
+ */ 
+
+ /**  
+ * @defgroup mermaid_gui Mermaid::GUI  
+ * 
+ * @brief Custom visual components
+ */ 

@@ -1,0 +1,48 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+# +--------------------------------------------------------------------------
+# |
+# |   Mermaid GPL Source Code
+# |   Copyright (c) 2013 2013-2016 Ltda (http://xnerv.com). All rights reserved.
+# |
+# |   This file is part of the Mermaid GPL Source Code.
+# |
+# |   Mermaid Source Code is free software: you can redistribute it and/or
+# |   modify it under the terms of the GNU General Public License
+# |   as published by the Free Software Foundation, either version 3
+# |   of the License, or (at your option) any later version.
+# |
+# |   Mermaid Source Code is distributed in the hope that it will be useful,
+# |   but WITHOUT ANY WARRANTY; without even the implied warranty of
+# |   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# |   GNU General Public License for more details.
+# |
+# |   You should have received a copy of the GNU General Public License
+# |   along with Mermaid Source Code. If not, see <http://www.gnu.org/licenses/>.
+# |
+# +--------------------------------------------------------------------------
+
+from common.enums import OSName
+
+if bld.env.PROJECT_OS_NAME == OSName.LINUX:
+    cflags = cxxflags = ['-fPIC']
+else:
+    cflags = cxxflags = []
+
+module_name = str(bld.path)
+src         = bld.path.ant_glob(['src/*.cpp', 'src/*.c']) 
+
+def sdk_install_callback(bld):
+	start_dir = bld.path.find_dir('include')
+	bld.install_files('${INCLUDEDIR}', start_dir.ant_glob('**/*'), cwd=start_dir, relative_trick=True)
+
+bld.BUILD_STATIC_LIBRARY(
+    target = module_name,
+    source = src,
+    includes = 'include',
+	export_includes = 'include',
+	msvs_includes = 'include',
+	cflags = cflags,
+	cxxflags = cxxflags,
+	sdk_install_callback = sdk_install_callback)

@@ -1,0 +1,92 @@
+#!/usr/bin/env python
+# encoding: utf-8
+
+# +--------------------------------------------------------------------------
+# |
+# |   Mermaid GPL Source Code
+# |   Copyright (c) 2013-2016 XNerv Ltda (http://xnerv.com). All rights reserved.
+# |
+# |   This file is part of the Mermaid GPL Source Code.
+# |
+# |   Mermaid Source Code is free software: you can redistribute it and/or
+# |   modify it under the terms of the GNU General Public License
+# |   as published by the Free Software Foundation, either version 3
+# |   of the License, or (at your option) any later version.
+# |
+# |   Mermaid Source Code is distributed in the hope that it will be useful,
+# |   but WITHOUT ANY WARRANTY; without even the implied warranty of
+# |   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# |   GNU General Public License for more details.
+# |
+# |   You should have received a copy of the GNU General Public License
+# |   along with Mermaid Source Code. If not, see <http://www.gnu.org/licenses/>.
+# |
+# +--------------------------------------------------------------------------
+
+from waflib.TaskGen import feature
+from common.enums import OSName
+
+
+
+if bld.env.PROJECT_OS_NAME == OSName.LINUX:
+    cflags = cxxflags = ['-fPIC']
+    includes          = ['.', "/usr/include/freetype2"]
+    libs              = ['dl', 'X11', 'Xext', 'Xinerama', 'freetype', 'pthread', 'rt', 'GL', 'asound']
+else:
+    cflags = cxxflags = []
+    includes          = ['.'] # the directory where this script is running
+    libs              = ['kernel32', 'user32', 'gdi32', 'winspool', 'comdlg32', 'advapi32', 'shell32', 'ole32', 'oleaut32', 'uuid', 'odbc32', 'odbccp32']
+
+def sdk_install_callback(bld):
+    root_folder           = bld.path.find_dir('.')
+    modules_folder        = bld.path.find_dir('modules')
+    app_config_file       = bld.path.find_node('AppConfig.h')
+    juce_header_file      = bld.path.find_node('juce.h')
+
+    bld.install_files('${INCLUDEDIR}/juce/modules', modules_folder.ant_glob('**/*.h'), cwd=modules_folder, relative_trick=True)
+    bld.install_files('${INCLUDEDIR}/juce', juce_header_file, cwd=root_folder, relative_trick=True)
+    bld.install_files('${INCLUDEDIR}/juce', app_config_file, cwd=root_folder, relative_trick=True)
+
+bld.BUILD_THIRDPARTY_SHARED_LIBRARY(
+    target = "juce",
+    source = ['modules/juce_audio_basics/juce_audio_basics.cpp', 
+              'modules/juce_audio_devices/juce_audio_devices.cpp', 
+              'modules/juce_audio_formats/juce_audio_formats.cpp', 
+              'modules/juce_audio_processors/juce_audio_processors.cpp', 
+              'modules/juce_audio_utils/juce_audio_utils.cpp',  
+              'modules/juce_cryptography/juce_cryptography.cpp', 
+              'modules/juce_data_structures/juce_data_structures.cpp', 
+              'modules/juce_events/juce_events.cpp', 
+              'modules/juce_graphics/juce_graphics.cpp', 
+              'modules/juce_gui_basics/juce_gui_basics.cpp', 
+              'modules/juce_gui_extra/juce_gui_extra.cpp', 
+              'modules/juce_opengl/juce_opengl.cpp', 
+              'modules/juce_core/juce_core.cpp',
+              'modules/juce_video/juce_video.cpp'],
+    includes = includes,
+    export_includes = ['.'],
+    msvs_includes   = ['modules/juce_audio_basics', 
+                       'modules/juce_audio_devices', 
+                       'modules/juce_audio_formats', 
+                       'modules/juce_audio_processors', 
+                       'modules/juce_audio_utils',
+                       'modules/juce_box2d',  
+                       'modules/juce_cryptography', 
+                       'modules/juce_data_structures', 
+                       'modules/juce_events', 
+                       'modules/juce_graphics', 
+                       'modules/juce_gui_basics', 
+                       'modules/juce_gui_extra', 
+                       'modules/juce_opengl', 
+                       'modules/juce_core',
+                       'modules/juce_video'],
+    additional_files = ['AppConfig.h', 'juce.h'],
+    defines          = ['JUCE_DLL_BUILD=1','JUCE_STANDALONE_APPLICATION=1'],
+    export_defines   = ['JUCE_DLL=1'],
+    lib			     = libs,
+    cflags   = cflags,
+    cxxflags = cxxflags,
+    sdk_install_callback = sdk_install_callback,
+    groups     = 'main tools')
+
+        
