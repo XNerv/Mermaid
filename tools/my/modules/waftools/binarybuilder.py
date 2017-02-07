@@ -144,7 +144,7 @@ class ResourceGenerator:
     try:
       resource           = open(entity.EntityPath, 'rb')
       resource_data_size = os.path.getsize(entity.EntityPath)
-      Logs.info('binarybuilder: resource that will be processed has ' + str(resource_data_size) + ' bytes in size. %s' % os.path.relpath(cpp_file, self.output_directory))
+      Logs.info('binarybuilder: building binary data from %s' % os.path.relpath(cpp_file, self.output_directory) + ' (' + str(resource_data_size) + ' bytes)')
     except IOError:     
       Logs.error('binarybuilder: failed to open the resource file %s' % entity.EntityPath)
       sys.exit(1)
@@ -188,14 +188,14 @@ class ResourceGenerator:
 
     if not os.path.exists(base_path):
       os.makedirs(base_path)
-    Logs.info('binarybuilder: the generated files will be placed in the following path %s' % base_path)
+    Logs.debug('binarybuilder: the generated files will be placed in the following path %s' % base_path)
 
     main_header_file = os.path.join(base_path, "resources.h")
     
     try:
       self.main_header = open(main_header_file, 'wb')
-    except IOError:     
-      print "Failed to open the main header file " + main_header_file
+    except IOError: 
+      Logs.error('binarybuilder: failed to open the main header file  %s' % main_header_file)    
       sys.exit(1)  
 
     self.main_header.write ("/****************************************************    \n")
@@ -215,7 +215,8 @@ class ResourceGenerator:
       elif entity.EntityType == EntityType.FILE:
         self.generate_resource(entity, namespace)
       else:
-        print "Unknown file " + entity.EntityPath
+        Logs.warn('binarybuilder: unknown entity type for the file %s' % entity.EntityPath)
+
 
 
 
@@ -240,6 +241,8 @@ class embedres(Task.Task):
       for x in self.inputs + self.outputs:
         up(x.path_from(x.ctx.srcnode).encode())
       self.uid_ = m.digest()
+      from objbrowser import browse
+      browse(locals())
       return self.uid_
 
   def runnable_status(self):  
@@ -297,6 +300,7 @@ class embedres(Task.Task):
 
 
 
+
 @feature('embedres')
 def create_embedres_task(self):
   if not getattr(self, 'target', None):
@@ -325,8 +329,10 @@ def create_embedres_task(self):
 
 
 
+
 def configure(conf):
   pass
+
 
 
 
@@ -342,6 +348,7 @@ def process_add_res_src(self):
             self.source.extend(y.embedres_task.outputs)
   except Exception, e:
     pass
+
 
 
 
