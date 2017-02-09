@@ -29,7 +29,7 @@ bld.EMBED_RESOURCES(
 	target = "app_res",
 	root_namespace = 'Embed',
 
-	resource = bld.path.ant_glob(['images/**/*.png', 'icons/**/*.png']),
+	resources = bld.path.ant_glob(['images/**/*.png', 'icons/**/*.png']),
 
 	include_patterns = ['*.png'],
 	resource_dirs = ['icons', 'images'])
