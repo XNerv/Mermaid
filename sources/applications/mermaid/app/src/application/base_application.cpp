@@ -27,7 +27,7 @@
 #include "application.h"
 #include "base_application.h"
 #include "messages.h"
-#include "resources.h"
+#include "app_res/resources.h"
 
 
 void Mermaid::Application::BaseApp::initialise(const juce::String& commandLine)
