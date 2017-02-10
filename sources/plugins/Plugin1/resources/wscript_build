@@ -28,6 +28,6 @@ import os
 bld.EMBED_RESOURCES(
 	target = "plugin1-res",
 	resources=bld.path.ant_glob(['images/**/*.png', 'icons/**/*.png']),
-	root_namespace = 'Embed',
+	#root_namespace = 'EmbedX',
 	include_patterns = ['*.png'],
 	resource_dirs = ['icons', 'images']) 

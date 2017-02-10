@@ -40,7 +40,7 @@ def remove_apply_implib_method(self):
 @feature('c', 'cxx')
 @after_method('apply_flags_msvc')
 def fix_apply_flags_msvc(self):
-    is_static = isinstance(self.link_task, ccroot.stlink_task)
+    is_static = isinstance(getattr(self, 'link_task', None), ccroot.stlink_task)
     if not is_static:
         for f in self.env.LINKFLAGS:
             d = f.lower()

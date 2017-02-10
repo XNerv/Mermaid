@@ -46,6 +46,11 @@ class TextUtils:
         filename = TextUtils.filter_text(text = filename, valid_chars = "-_. %s%s" % (string.ascii_letters, string.digits), replacements = {' ':'_', '.':'_', '-':'_'})
         return filename.lower()
 
+    @staticmethod
+    def normalise_namespace(namespace):
+        filename = TextUtils.filter_text(text = namespace, valid_chars = "-_. %s%s" % (string.ascii_letters, string.digits), replacements = {' ':'_', '.':'_', '-':'_'})
+        return filename.lower()
+
 
 
 
@@ -65,125 +70,127 @@ class embedres(Task.Task):
           if not task.hasrun:
             return Task.ASK_LATER
 
-        self.output_dir = self.generator.path.get_bld().make_node(TextUtils.normalise_filename(self.generator.name))
-  
-        return super(embedres, self).runnable_status()
+        self.source_dir = self.generator.path
+        self.output_dir = self.source_dir.get_bld().make_node(TextUtils.normalise_filename(self.generator.name))
+        self.root_namespace = getattr(self.generator, 'root_namespace', 'Embed') + '::' + TextUtils.normalise_namespace(self.generator.name)
+        self.generator.export_includes  = self.output_dir.parent.abspath()
+
+        self.set_inputs(getattr(self.generator, 'resources', []))
+
+        ret = super(embedres, self).runnable_status()
+        if ret == Task.SKIP_ME:
+            lst = self.generator.bld.raw_deps[self.uid()]
+            if lst[0] != self.signature():
+                return Task.RUN_ME
+
+            nodes = lst[1:]
+            for x in nodes:
+                try:
+                    os.stat(x.abspath())
+                except:
+                    return Task.RUN_ME
+
+            nodes = lst[1:]
+            self.set_outputs(nodes)
+            self.add_cxx_tasks(nodes)
+
+        return ret
 
     def run(self):
-        def get_file_namespace(root_namespace, source_dir_node, file_node):
-            ns = os.path.split(file_node.path_from(source_dir_node))[0].replace(os.sep, "::")
+        def get_resource_namespace(resource_node):
+            ns = os.path.split(resource_node.path_from(self.source_dir))[0]
+            ns = "::".join([TextUtils.normalise_namespace(n) for n in ns.split(os.sep)])
             return self.root_namespace + ('::' + ns if ns else '')
   
         def change_ext(path, new_ext):
             return os.path.splitext(path)[0] + new_ext
   
-        def generate_files(file_node):
-            file_name = os.path.basename(file_node.abspath())
+        def generate_source(resource_node):
+            generation_date = datetime.datetime.now()
 
-            resource_data      = file_node.read('rb')
-            resource_data_size = os.path.getsize(file_node.abspath())
+            resource_name        = os.path.basename(resource_node.abspath())
+            resource_name_normalised = TextUtils.normalise_filename(resource_name)
+
+            resource_data      = resource_node.read('rb')
+            resource_data_size = os.path.getsize(resource_node.abspath())
              
-            include_node            = self.output_dir.find_or_declare(change_ext(os.path.join("src", file_node.get_bld().path_from(self.generator.path.get_bld())), '.h'))
-            include_namespace       = get_file_namespace(self.root_namespace, self.generator.path, file_node) 
+            include_node            = self.output_dir.find_or_declare(change_ext(os.path.join("src", resource_node.get_bld().path_from(self.source_dir.get_bld())), '.h'))
+            include_namespace       = get_resource_namespace(resource_node) 
             include_namespace_split = include_namespace.split("::")
+
             include_node.write ( "/****************************************************\n" +
                                  " * (Auto-generated file; DO NOT EDIT MANUALLY!)\n" +
-                                 " * Generation date: " + str(datetime.datetime.now()) + "\n" +
+                                 " * Generation date: " + str(generation_date) + "\n" +
                                  " ****************************************************/\n" +
-                               "\n" +
+                                 "\n" +
                                  "#pragma once\n" +
                                  "\n" +
                                  "".join(["namespace " + n + " { " for n in include_namespace_split]) +
                                  "\n" +
-                                 "  extern const char* " + TextUtils.normalise_filename(file_name) + ";\n" +
-                                 "  const int          " + TextUtils.normalise_filename(file_name) + "_SIZE = " + str(resource_data_size) + ";\n" +
+                                 "  extern const char* " + resource_name_normalised + ";\n" +
+                                 "  const int          " + resource_name_normalised + "_SIZE = " + str(resource_data_size) + ";\n" +
                                  "".join(["}" for n in include_namespace_split]) + "\n")
   
-            cpp_node = self.output_dir.find_or_declare(change_ext(os.path.join("src", file_node.get_bld().path_from(self.generator.path.get_bld())), '.cpp'))
+            cpp_node = self.output_dir.find_or_declare(change_ext(os.path.join("src", resource_node.get_bld().path_from(self.source_dir.get_bld())), '.cpp'))
             cpp_node.write ( "/****************************************************\n" +
                              " * (Auto-generated file; DO NOT EDIT MANUALLY!)\n" +
-                             " * Generation date: " + str(datetime.datetime.now()) + "\n" +
+                             " * Generation date: " + str(generation_date) + "\n" +
                              " ****************************************************/\n" +
                              "\n" +
                              "#include \"" + os.path.basename(include_node.abspath()) + "\"\n" +
                              "\n" +
                              "static const unsigned char data[] = {" + "".join(map(lambda ch: str(ord(ch)) + ',', resource_data)) + "0,0};\n" +
                              "\n" +
-                             "const char* " + include_namespace + "::" + TextUtils.normalise_filename(file_name) + " = (const char*) data;\n")
+                             "const char* " + include_namespace + "::" + resource_name_normalised + " = (const char*) data;\n")
             
             self.outputs.append(cpp_node)
   
-        def generate_main_include_file():
-            main_include_node = self.generator.path.get_bld().find_or_declare(TextUtils.normalise_filename(self.generator.name)).find_or_declare("resources.h")
+        def generate_main_include():
+            generation_date = datetime.datetime.now()
+
+            main_include_node = self.output_dir.find_or_declare("resources.h")
             main_include_node.write ( "/****************************************************\n" +
                                     " * (Auto-generated file; DO NOT EDIT MANUALLY!)\n" +
-                                    " * Generation date: " + str(datetime.datetime.now()) + "\n" +
+                                    " * Generation date: " + str(generation_date) + "\n" +
                                     " ****************************************************/\n" +
                                     "\n" +
-                                    "".join(["#include \"" + os.path.join("src", change_ext(input.get_bld().path_from(self.generator.path.get_bld()), '.h')).replace("\\", "/") + "\"\n"  for input in self.inputs]))
+                                    "".join(["#include \"" + os.path.join("src", change_ext(input.get_bld().path_from(self.source_dir.get_bld()), '.h')).replace("\\", "/") + "\"\n"  for input in self.inputs]))
   
-        for file_node in self.inputs:
-            generate_files(file_node)
+        for resource_node in self.inputs:
+            generate_source(resource_node)
   
-        generate_main_include_file()
-  
+        generate_main_include()
+
+        self.generator.bld.raw_deps[self.uid()] = [self.signature()] + self.outputs
+        self.add_cxx_tasks(self.outputs)
+
         return 0
 
-    def scan(self):
-        nodes = [] 
-        nodes.append(self.generator.path.find_node('wscript_build'))
-        [nodes.append(node) for node in self.output_dir.ant_glob('**/*.o', quiet=True)]
-        
-        return (nodes, time.time())
+    def add_cxx_tasks(self, lst):
+        self.more_tasks = []
+        for node in lst:
+            if node.name.endswith('.h'):
+                continue
+            tsk = self.generator.create_compiled_task('cxx', node)
+            tsk.env=self.env
+            tsk.generator=self.generator
+
+            self.more_tasks.append(tsk)
+
+            tsk.env.append_value('INCPATHS', [node.parent.abspath()])
+
+            #if getattr(self.generator, 'link_task', None):
+            #    self.generator.link_task.set_run_after(tsk)
+            #    self.generator.link_task.inputs.append(tsk.outputs[0])
+            #    self.generator.link_task.inputs.sort(key=lambda x: x.abspath())
 
 
 
 
 
 @feature('embedres')
-def create_embedres_task(self):
-    resources  = getattr(self, 'resources', [])
-    self.embedres_task = self.create_task('embedres', resources)
-    self.embedres_task.root_namespace = getattr(self, 'root_namespace', 'Embed') + '::' + TextUtils.normalise_filename(self.name)
-    self.embedres_task.generator.export_includes  = self.path.get_bld().abspath()
-
-
-
-
-
-@feature('*')
-@before_method('process_source')
-def process_add_res_src(self):
-    try:
-        for x in self.to_list(getattr(self, 'use', [])):
-            y = self.bld.get_tgen_by_name(x)
-            y.post()
-            if getattr(y, 'embedres_task', None):
-                if y.embedres_task.hasrun==Task.SUCCESS:
-                  self.source.extend(y.embedres_task.outputs)
-    except Exception, e:
-      pass
-
-
-
-
-
-@feature('*')
-@after_method('process_source')
-@before_method('apply_link')
-def process_link_res_src(self):
-    try:
-        tg=self.bld.get_tgen_by_name(self.target)
-        tg.post()
-        for x in self.to_list(getattr(tg, 'use', [])):
-              y = self.bld.get_tgen_by_name(x)
-              y.post()
-              if getattr(y, 'embedres_task', None):
-                  for item in y.embedres_task.output_dir.ant_glob('**/*.o', quiet=True):
-                      item.sig = Utils.h_file(item.abspath())
-                      self.add_those_o_files(item)
-    except Exception, e:
-      pass
+def process_embedres(self):
+    self.embedres_task=self.create_task('embedres')
 
 
 

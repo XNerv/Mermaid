@@ -219,13 +219,16 @@ def EMBED_RESOURCES(bld, *k, **kw):
     kw['project_group'] = project_group
     kw['group'] = ProjectBuildGroup.RESOURCES
 
-    kw['project_category'] = None
+    kw['project_category'] = ProjectCategory.MAIN
+    project_category = kw['project_category']
 
-    features = ['embedres']
+    features = ['embedres', 'c', 'cxx']
     if 'features' in kw:
         kw['features'] = to_list(kw['features']) + features 
     else:
         kw['features'] = features
+
+    kw = set_flags(bld, project_category, **kw)
  
     return bld(*k, **kw)
 
