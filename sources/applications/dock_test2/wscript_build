@@ -23,9 +23,21 @@
 #// |
 #// +--------------------------------------------------------------------------
 
-def build(bld):
-    bld.RECURSE([
-    				'mermaid',
-    				'dock_test',
-    				'dock_test2'
-    			])
+from common.enums import OSName
+
+if bld.env.PROJECT_OS_NAME == OSName.LINUX:
+    libs = ['dl', 'X11', 'Xext', 'Xinerama', 'freetype', 'pthread', 'rt', 'GL']
+else: 
+    libs = ['kernel32', 'user32', 'gdi32', 'winspool', 'comdlg32', 'advapi32', 'shell32', 'ole32', 'oleaut32', 'uuid', 'odbc32', 'odbccp32']
+
+src         = bld.path.ant_glob('src/**/*.cpp')
+
+bld.BUILD_PROGRAM(
+    target    = 'dock_test2',
+    source    = src,
+    subsystem = 'windows',
+	includes = ['src'],
+    libpath   = ['/usr/X11R6/lib/'],
+	lib       = libs,
+	use       = ['juce'],
+	rpath     = '$ORIGIN/../lib')
