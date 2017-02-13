@@ -80,7 +80,7 @@ class embedres(Task.Task):
 
         self.source_dir = self.generator.path
         self.output_dir = self.source_dir.get_bld().make_node(Utils.normalise_filename(self.generator.name))
-        self.generator.export_includes  = self.output_dir.parent.abspath()
+        self.generator.export_includes = self.output_dir.parent.abspath()
 
         self.set_inputs(getattr(self.generator, 'resources', []))
 
@@ -202,4 +202,4 @@ class embedres(Task.Task):
 @feature('embedres')
 def process_embedres(self):
     self.embedres_task = self.create_task('embedres')
-    
+    self.embedres_task.generator.export_includes = self.path.get_bld().abspath()
