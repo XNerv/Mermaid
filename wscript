@@ -149,7 +149,7 @@ def options(opt):
         opt.load('msvs')    # enable command to generate visual studio solution
     
     opt.load('doxygen')
-    opt.load('binarybuilder')
+    opt.load('embedres')
 
     opt.recurse([
                     project_src_dir,
@@ -245,7 +245,7 @@ def configure(conf):
             conf.fatal("""\nUnsupported platform (""" + System.get_current_os_name() + """). Aborting! {error:707a4461}.""")
 
         conf.load('doxygen')
-        conf.load('binarybuilder')
+        conf.load('embedres')
 
         conf.RECURSE([
                         conf.env.PROJECT_SRC_DIR,
