@@ -27,8 +27,10 @@ from common.enums import OSName
 
 if bld.env.PROJECT_OS_NAME == OSName.LINUX:
     cflags = cxxflags = ['-fPIC']
+    libs = []
 else:
     cflags = cxxflags = []
+    libs = ['opengl32']
 
 module_name = str(bld.path)
 src         = bld.path.ant_glob(['src/*.cpp']) 
@@ -45,6 +47,7 @@ bld.BUILD_SHARED_LIBRARY(
 	msvs_includes = 'include',
 	cflags = cflags,
 	cxxflags = cxxflags,
+	lib = libs,
 	use = ['juce', 'mermaid_base'],
 	sdk_install_callback = sdk_install_callback)
 

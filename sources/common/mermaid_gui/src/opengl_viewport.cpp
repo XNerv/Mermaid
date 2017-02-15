@@ -20,29 +20,28 @@
 // |
 // +---------------------------------------------------------------------------
 
-#include "../../application/application.h"
+#include "mermaid_gui/opengl_viewport.h"
 
-#include "main_window.h"
- 
-Mermaid::Windows::MainWindow::MainWindow::MainWindow() : DocumentWindow
-(   
-    Mermaid::Application::App::getInstance().getApplicationName(), 
-    juce::Colours::darkgrey, 
-    DocumentWindow::allButtons,
-    true
-)
+Mermaid::GUI::OpenGLViewport::OpenGLViewport(const juce::String& name) : Component(name)
 {
-    setResizable(true, false); 
-	setTitleBarHeight(25);
-
-	this->m_MainMenuBar = new MainMenuBar(&Mermaid::Application::App::getInstance().getCommandManager());
-	setMenuBar(this->m_MainMenuBar);
-    
-    m_MainComponent = new MainComponent();
-    setContentOwned(m_MainComponent, false);
+    setOpaque(true);
+    this->setSize(600, 600);
 }
 
-Mermaid::Windows::MainWindow::MainWindow::~MainWindow()
+Mermaid::GUI::OpenGLViewport::~OpenGLViewport()
 {
-
+    m_OpenGLContext.detach();
 }
+
+void Mermaid::GUI::OpenGLViewport::paint(juce::Graphics& graphics)
+{
+    // You can add your component specific drawing code here!
+    // This will draw over the top of the openGL background.
+    graphics.fillAll(juce::Colour(0, 0, 0));
+    graphics.setColour(juce::Colours::white);
+    graphics.setFont(20);
+    graphics.drawText("OpenGL Example", 25, 20, 300, 30, juce::Justification::left);
+    graphics.drawLine(20, 20, 170, 20);
+    graphics.drawLine(20, 50, 170, 50);
+}
+
